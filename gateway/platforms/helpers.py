@@ -245,6 +245,84 @@ class ThreadParticipationTracker:
         self._threads.clear()
 
 
+# ─── GFM Table Formatting ───────────────────────────────────────────────────
+
+
+def pad_table_in_codeblock(content: str) -> str:
+    """
+    Detect GFM tables NOT already inside code blocks and wrap them
+    in a ```text code block so platform renderers display fixed-width columns.
+
+    A table section: header row + separator row + one or more data rows.
+    The separator row matches ``| :-- | :--: | --: |`` (GFM alignment).
+
+    Replaces the identical ``_pad_table_in_codeblock()`` methods previously
+    duplicated in discord.py and telegram.py.
+    """
+    lines = content.splitlines()
+    result: list[str] = []
+    i = 0
+    in_code_block = False
+
+    while i < len(lines):
+        line = lines[i]
+
+        # Track code fence state
+        if line.strip().startswith("```"):
+            in_code_block = not in_code_block
+            result.append(line)
+            i += 1
+            continue
+
+        # Only process tables outside code blocks
+        if not in_code_block and line.strip().startswith("|"):
+            stripped = line.strip()
+            # Require at least 3 pipes (header + 2 cols) to be a real GFM table.
+            # This prevents spoilers (||text||) and single-pipe lines from triggering.
+            if stripped.count("|") < 3:
+                result.append(line)
+                i += 1
+                continue
+            # A real GFM separator row contains ONLY | - : spaces (no letters, numbers, etc.)
+            if re.fullmatch(r"\|[\s\-:]*\|(\s|\s*\|[\s\-:]*\|)*", stripped):
+                # This is a separator row — back up to capture the header row too
+                table_lines: list[str] = []
+                if result and result[-1].strip().startswith("|"):
+                    table_lines.append(result.pop())
+
+                # Collect separator + all consecutive data rows
+                table_lines.append(line)
+                j = i + 1
+                while j < len(lines) and lines[j].strip().startswith("|"):
+                    table_lines.append(lines[j])
+                    j += 1
+
+                # Pad columns to equal width using plain GFM pipe-table syntax
+                rows = [ln.strip().strip("|").split("|") for ln in table_lines]
+                widths = [max(len(cell) for cell in col) for col in zip(*rows)]
+                padded = [
+                    "| " + " | ".join(cell.ljust(w) for cell, w in zip(row, widths)) + " |"
+                    for row in rows
+                ]
+                sep = "|" + "|".join("-" * (w + 2) for w in widths) + "|"
+                # Replace separator row with padded version
+                padded[1] = sep
+                result.append("```text")
+                result.extend(padded)
+                result.append("```")
+                i = j
+                continue
+            # Single row that isn't a separator — emit as-is
+            result.append(line)
+            i += 1
+            continue
+
+        result.append(line)
+        i += 1
+
+    return "\n".join(result)
+
+
 # ─── Phone Number Redaction ──────────────────────────────────────────────────
 
 

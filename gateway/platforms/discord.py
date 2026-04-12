@@ -1565,10 +1565,11 @@ class DiscordAdapter(BasePlatformAdapter):
         """
         Format message for Discord.
 
-        Discord uses its own markdown variant.
+        Discord uses its own markdown variant. GFM tables outside code blocks
+        are detected and wrapped in a code block so they render correctly.
         """
-        # Discord markdown is fairly standard, no special escaping needed
-        return content
+        from gateway.platforms.helpers import pad_table_in_codeblock
+        return pad_table_in_codeblock(content)
 
     async def _run_simple_slash(
         self,

@@ -1821,6 +1821,11 @@ class TelegramAdapter(BasePlatformAdapter):
         if not content:
             return content
 
+        # Pre-process: wrap bare GFM tables in code blocks so they skip
+        # MarkdownV2 | escaping and all other transformations entirely.
+        from gateway.platforms.helpers import pad_table_in_codeblock
+        content = pad_table_in_codeblock(content)
+
         placeholders: dict = {}
         counter = [0]
 
