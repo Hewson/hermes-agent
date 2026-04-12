@@ -48,9 +48,24 @@ def _run_boot_agent(content: str) -> None:
     """Spawn a one-shot agent session to execute the boot instructions."""
     try:
         from run_agent import AIAgent
+        from gateway.run import (
+            _load_gateway_config,
+            _resolve_gateway_model,
+            _resolve_runtime_agent_kwargs,
+        )
 
         prompt = _build_boot_prompt(content)
+        user_config = _load_gateway_config()
+        model = _resolve_gateway_model(user_config)
+        runtime_kwargs = _resolve_runtime_agent_kwargs()
+
+        if not model:
+            logger.error("boot-md skipped: could not resolve a gateway model from config")
+            return
+
         agent = AIAgent(
+            model=model,
+            **runtime_kwargs,
             quiet_mode=True,
             skip_context_files=True,
             skip_memory=True,
